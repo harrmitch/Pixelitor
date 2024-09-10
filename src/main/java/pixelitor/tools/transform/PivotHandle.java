@@ -24,10 +24,8 @@ import pixelitor.tools.util.PPoint;
 import pixelitor.utils.Cursors;
 
 import java.awt.*;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
-import java.awt.geom.Point2D;
 import java.io.Serial;
 
 /**
@@ -78,12 +76,9 @@ public class PivotHandle extends DraggablePoint {
     public void paintHandle(Graphics2D g) {
         super.paintHandle(g);
         if (isActive()) {
-            int displayBgWidth = DragDisplay.BG_WIDTH_ANGLE;
-            DragDisplay dd = new DragDisplay(g, displayBgWidth);
+            DragDisplay dd = new DragDisplay(g, 110);
 
-            String pivotInfo = "x=" + x + "y=" + y;
-
-            dd.drawOneLine(pivotInfo, (float) x - (float) DragDisplay.BG_WIDTH_ANGLE/2, (float) y - DragDisplay.ONE_LINER_BG_HEIGHT);
+            dd.drawOneLine("Move rotation pivot", (float) x - (float) 110 /2, (float) y - 10);
         }
     }
 }
