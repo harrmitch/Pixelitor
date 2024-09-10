@@ -84,7 +84,8 @@ public class RotationHandle extends DraggablePoint {
 
         double angle = reCalcAngle(newX, newY, false);
 
-        box.coTransform(AffineTransform.getRotateInstance(angle - rotStartAngle, cx, cy));
+        Point2D pivPoint = box.getCoPiv();
+        box.coTransform(AffineTransform.getRotateInstance(angle - rotStartAngle, pivPoint.getX(), pivPoint.getY()));
         box.setRotated(true);
     }
 

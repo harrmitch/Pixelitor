@@ -68,6 +68,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
     private final CornerHandle se;
     private final CornerHandle sw;
     private final RotationHandle rot;
+    private final PivotHandle piv;
 
     private DraggablePoint[] handles;
     private CornerHandle[] corners;
@@ -81,6 +82,11 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
     // Keep track of the rotated status because pixel
     // snapping should not work after rotating.
     private boolean rotated;
+
+    // Keep track of whether the pivot has been moved
+    // from the center because pivot should be at center
+    // after scale or move operations if it hadn't been manually moved.
+    private boolean pivotMoved;
 
     // the starting positions of the box in component and image space,
     // corresponding to the initial size of the transformed object
@@ -149,6 +155,9 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         PPoint rotPos = new PPoint(center.getX(), ne.getY() - ROT_HANDLE_DISTANCE, view);
         rot = new RotationHandle("rot", this, rotPos, view);
 
+        PPoint pivPos = new PPoint(center.getX(), center.getY(), view);
+        piv = new PivotHandle("piv", this, pivPos, view);
+
         initBox();
     }
 
@@ -170,7 +179,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         se.setVerNeighbor(ne, e, true);
 
         // define some point sets for convenience
-        handles = new DraggablePoint[]{nw, ne, se, sw, rot, n, e, w, s};
+        handles = new DraggablePoint[]{nw, ne, se, sw, rot, piv, n, e, w, s};
         corners = new CornerHandle[]{nw, ne, se, sw};
         edges = new EdgeHandle[]{n, e, w, s};
         positions = new PositionHandle[]{nw, ne, se, sw, n, e, w, s};
@@ -186,6 +195,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         this.se = other.se.copy(this);
         this.sw = other.sw.copy(this);
         this.rot = other.rot.copy(this);
+        this.piv = other.piv.copy(this);
 
         this.origImRect = new Rectangle2D.Double();
         origImRect.setRect(other.origImRect);
@@ -259,10 +269,10 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         double rad = unit.toRadians(angle);
         double angleBefore = this.angle;
         setAngle(rad);
-        Point2D c = getCenter();
-        double cx = c.getX();
-        double cy = c.getY();
-        coTransform(AffineTransform.getRotateInstance(rad - angleBefore, cx, cy));
+        Point2D coPivot = getCoPiv();
+        double px = coPivot.getX();
+        double py = coPivot.getY();
+        coTransform(AffineTransform.getRotateInstance(rad - angleBefore, px, py));
         setRotated(true);
     }
 
@@ -321,6 +331,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         boolean wasInsideOut = rotatedImSize.isInsideOut();
         updateRotatedDimensions();
         updateRotLocation();
+        updatePivot(this.view);
         updateBoxShape();
         applyTransform();
 
@@ -355,6 +366,20 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         double rotY = northCenter.getY() - rotDistY;
         rot.setLocation(rotX, rotY);
     }
+
+    private void updatePivot(View view) {
+        if (!pivotMoved) {
+            // if handle is untouched,
+            // pivot point always remains in the middle of the shape
+            Point2D center = Geometry.midPoint(ne, sw);
+            piv.setLocation(center);
+        } else {
+            // adapt pivot point to the correct coordinate
+            // in image space on resizing/zoom
+            piv.restoreCoordsFromImSpace(view);
+        }
+    }
+
 
     @Override
     public void paint(Graphics2D g) {
@@ -565,6 +590,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         updateEdgePositions();
         updateRotLocation();
         updateBoxShape();
+        updatePivot(view);
     }
 
     @Override
@@ -587,6 +613,14 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
 
     public void setRotated(boolean rotated) {
         this.rotated = rotated;
+    }
+
+    public void setPivotMoved(boolean pivotMoved) {
+        this.pivotMoved = pivotMoved;
+    }
+
+    public Point2D getCoPiv() {
+        return piv.getCoLocationCopy();
     }
 
     /**
@@ -737,6 +771,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
         sw.setLocationOnlyForThis(m.sw);
         setAngle(m.angle);
         rotated = m.rotated;
+        pivotMoved = m.pivotMoved;
 
         cornerHandlesMoved();
 
@@ -791,6 +826,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
 
         private final double angle;
         private final boolean rotated;
+        private final boolean pivotMoved;
 
         public Memento(TransformBox box) {
             this.nw = box.nw.getLocationCopy();
@@ -800,6 +836,7 @@ public class TransformBox implements ToolWidget, Debuggable, Serializable {
 
             this.angle = box.angle;
             this.rotated = box.rotated;
+            this.pivotMoved = box.pivotMoved;
         }
     }
 }
